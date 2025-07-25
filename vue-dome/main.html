@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工单管理系统</title>
+    <!-- 引入ECharts用于绘制柱状图 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+    <style>
+        .header {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            border-bottom: 1px solid #ccc;
+        }
+        
+        .container {
+            padding: 20px;
+        }
+        
+        /* 布局：表格和图表并排展示 */
+        .content {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .ticket-list {
+            flex: 2; /* 表格占比更大 */
+        }
+        
+        .chart-container {
+            flex: 1; /* 图表占比稍小 */
+            height: 400px; /* 固定图表高度 */
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        
+        .ticket-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .ticket-table th, .ticket-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        .ticket-table th {
+            background-color: #f2f2f2;
+        }
+        
+        .status-yes {
+            color: green;
+            font-weight: bold;
+        }
+        
+        .status-no {
+            color: red;
+        }
+        
+        .action-btn {
+            padding: 5px 10px;
+            margin: 0 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 3px;
+        }
+        
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .edit-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        .add-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>工单管理系统</h1>
+        <div>
+            <span id="userInfo"></span>
+            <button onclick="logout()">退出登录</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="ticket-list">
+            <button class="add-btn" id="addBtn">添加工单</button>
+            <table class="ticket-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Project</th>
+                        <th>Overtime</th>
+                        <th>Hours</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ticketBody"></tbody>
+            </table>
+        </div>
+
+        <div class="content">
+            <!-- 柱状图容器 -->
+            <div class="chart-container" id="hoursChart"></div>
+        </div>
+    </div>
+
+    <script>
+        // 工单数据
+        let tickets = [
+            { "id": "001", "project": "Road Project A", "overtime": true, "hours": 3.5, "created_at": "2024-04-10 10:30" },
+            { "id": "002", "project": "Bridge Maintenance B", "overtime": false, "hours": 2, "created_at": "2024-04-09 13:00" },
+            { "id": "003", "project": "Pipeline Fix C", "overtime": true, "hours": 4.5, "created_at": "2024-04-08 08:00" },
+            { "id": "004", "project": "Bridge Maintenance B", "overtime": true, "hours": 3, "created_at": "2024-04-07 16:45" },
+            { "id": "005", "project": "Tunnel Cleaning D", "overtime": false, "hours": 8.1, "created_at": "2024-04-03 11:43" }
+        ];
+
+        let currentUser = null;
+        let chart = null; // 图表实例
+
+        // 页面加载时初始化
+        window.onload = function() {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+            if (!userInfo) {
+                window.location.href = 'index.html';
+                return;
+            }
+            currentUser = userInfo;
+            document.getElementById('userInfo').textContent = `欢迎，${userInfo.username}（${userInfo.isAdmin ? '管理员' : '普通用户'}）`;
+            
+            // 非管理员隐藏添加按钮
+            if (!userInfo.isAdmin) {
+                document.getElementById('addBtn').style.display = 'none';
+            }
+
+            // 初始化图表
+            initChart();
+            // 渲染工单列表
+            renderTickets();
+        }
+
+        // 初始化柱状图
+        function initChart() {
+            chart = echarts.init(document.getElementById('hoursChart'));
+            updateChart(); // 初始加载数据
+        }
+
+        // 更新图表数据（按项目汇总工时）
+        function updateChart() {
+            // 统计每个项目的总工时
+            const projectHours = {};
+            tickets.forEach(ticket => {
+                if (projectHours[ticket.project]) {
+                    projectHours[ticket.project] += ticket.hours;
+                } else {
+                    projectHours[ticket.project] = ticket.hours;
+                }
+            });
+
+            // 图表配置
+            const option = {
+                title: { text: '项目工时分布' },
+                tooltip: { trigger: 'axis' },
+                xAxis: { type: 'category', data: Object.keys(projectHours) },
+                yAxis: { type: 'value', name: '工时(小时)' },
+                series: [{
+                    type: 'bar',
+                    data: Object.values(projectHours),
+                    label: { // 显示柱状图顶部的数值
+                        show: true,
+                        position: 'top',
+                        formatter: val => val.data.toFixed(1)
+                    }
+                }]
+            };
+            chart.setOption(option);
+        }
+
+        // 渲染工单列表
+        function renderTickets() {
+            const tbody = document.getElementById('ticketBody');
+            tbody.innerHTML = '';
+            tickets.forEach(ticket => {
+                const row = document.createElement('tr');
+                // 操作按钮（管理员有编辑权限）
+                const actions = currentUser.isAdmin 
+                    ? `<button class="action-btn edit-btn" onclick="editTicket('${ticket.id}')">编辑</button>
+                       <button class="action-btn delete-btn" onclick="deleteTicket('${ticket.id}')">删除</button>`
+                    : `<button class="action-btn delete-btn" onclick="deleteTicket('${ticket.id}')">删除</button>`;
+                
+                row.innerHTML = `
+                    <td>${ticket.id}</td>
+                    <td>${ticket.project}</td>
+                    <td class="${ticket.overtime ? 'status-yes' : 'status-no'}">${ticket.overtime ? 'Yes' : 'No'}</td>
+                    <td>${ticket.hours}</td>
+                    <td>${ticket.created_at}</td>
+                    <td>${actions}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            updateChart(); // 列表更新后同步更新图表
+        }
+
+        // 删除工单
+        function deleteTicket(id) {
+            if (confirm('确定删除？')) {
+                tickets = tickets.filter(t => t.id !== id);
+                renderTickets();
+            }
+        }
+
+        // 编辑工单
+        function editTicket(id) {
+            const ticket = tickets.find(t => t.id === id);
+            if (!ticket) return;
+            const newHours = prompt('请输入新工时', ticket.hours);
+            if (newHours && !isNaN(newHours)) {
+                ticket.hours = parseFloat(newHours);
+                renderTickets();
+            }
+        }
+
+        // 添加工单
+        function addTicket() {
+            const newId = `00${tickets.length + 1}`;
+            const newProject = prompt('请输入项目名称');
+            if (!newProject) return;
+            const newHours = parseFloat(prompt('请输入工时'));
+            if (isNaN(newHours)) return;
+            tickets.push({
+                id: newId,
+                project: newProject,
+                overtime: confirm('是否加班？'),
+                hours: newHours,
+                created_at: new Date().toLocaleString()
+            });
+            renderTickets();
+        }
+
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('userInfo');
+            window.location.href = 'index.html';
+        }
+
+        // 窗口大小变化时刷新图表
+        window.onresize = function() {
+            chart.resize();
+        }
+    </script>
+</body>
+</html>

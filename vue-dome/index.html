@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录页面</title>
+</head>
+<body>
+    <div class="all" style="display: flex;justify-content: center;align-content: center;margin-top: 10%;">
+        <div class="log-in" style="border: 2px solid rgb(39, 38, 38);width: 300px;height: 200px;padding: 10px;">
+            <h2>请输入你的用户名和密码</h2>
+            <div>
+                <!-- 添加id用于获取输入值 -->
+                <input placeholder="Username" class="用户名" id="username">
+            </div>
+            <div>
+                <!-- 添加id和密码类型（输入时显示圆点） -->
+                <input placeholder="Password" class="密码" id="password" type="password">
+            </div>
+            <!-- 添加点击事件，触发登录逻辑 -->
+            <button onclick="handleLogin()">Log In</button>
+        </div>
+    </div>
+
+    <script>
+        // 登录处理函数
+        function handleLogin() {
+            // 1. 获取输入框的值
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            // 2. 简单验证（不能为空）
+            if (!username) {
+                alert('请输入用户名');
+                usernameInput.focus(); // 聚焦到用户名输入框
+                return;
+            }
+            if (!password) {
+                alert('请输入密码');
+                passwordInput.focus(); // 聚焦到密码输入框
+                return;
+            }
+
+            // 3. 判断权限（admin为管理员，其他为普通用户）
+            const isAdmin = username === 'admin';
+
+            // 4. 保存用户信息到本地存储
+            localStorage.setItem('userInfo', JSON.stringify({
+                username: username,
+                isAdmin: isAdmin
+            }));
+
+            // 5. 跳转到主页面（假设主页面是main.html，根据你的实际文件名修改）
+            window.location.href = 'main.html';
+        }
+
+        // 增加回车登录功能（密码框按回车触发登录）
+        document.getElementById('password').addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                handleLogin();
+            }
+        });
+    </script>
+</body>
+</html>
+    
